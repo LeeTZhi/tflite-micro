@@ -12,6 +12,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+#ifdef __linux__
+#include <execinfo.h>
+#include <stdio.h>
+#endif
 
 #include "tensorflow/lite/micro/micro_op_resolver.h"
 
@@ -20,6 +24,29 @@ limitations under the License.
 #include "tensorflow/lite/schema/schema_utils.h"
 
 namespace tflite {
+
+#ifdef __linux__
+void PrintStackTrace() {
+  void* callstack[128];
+    int frames = backtrace(callstack, sizeof(callstack) / sizeof(void*));
+    char** symbols = backtrace_symbols(callstack, frames);
+
+    if (symbols == NULL)
+    {
+        perror("backtrace_symbols");
+        return;
+    }
+
+    for (int i = 0; i < frames; ++i)
+    {
+        printf("%s\n", symbols[i]);
+    }
+
+    free(symbols);
+}
+#else
+#define PrintStackTrace() ((void)0)
+#endif
 
 TfLiteStatus GetRegistrationFromOpCode(const OperatorCode* opcode,
                                        const MicroOpResolver& op_resolver,
@@ -36,6 +63,8 @@ TfLiteStatus GetRegistrationFromOpCode(const OperatorCode* opcode,
     if (*registration == nullptr) {
       MicroPrintf("Didn't find op for builtin opcode '%s'",
                   EnumNameBuiltinOperator(builtin_code));
+      //MicroPrintf("FILE %s LINE %d\n.", __FILE__, __LINE__);
+      //PrintStackTrace();
       status = kTfLiteError;
     }
   } else if (!opcode->custom_code()) {

@@ -21,7 +21,7 @@ limitations under the License.
 
 // Some platforms don't have M_PI
 #ifndef M_PI
-#define M_PI 3.14159265358979323846
+#define M_PI 3.14159265358979323846f
 #endif
 
 void WindowFillConfigWithDefaults(struct WindowConfig* config) {
@@ -41,13 +41,13 @@ int WindowPopulateState(const struct WindowConfig* config,
   }
 
   // Populate the window values.
-  const float arg = M_PI * 2.0 / ((float)state->size);
-  int i;
+  const float arg = M_PI * 2.0f / ((float)state->size);
+  size_t i;
   for (i = 0; i < state->size; ++i) {
-    float float_value = 0.5 - (0.5 * cos(arg * (i + 0.5)));
+    float float_value = 0.5f - (0.5f * cosf(arg * (i + 0.5f)));
     // Scale it to fixed point and round it.
     state->coefficients[i] =
-        floor(float_value * (1 << kFrontendWindowBits) + 0.5);
+        floor(float_value * (1 << kFrontendWindowBits) + 0.5f);
   }
 
   state->input_used = 0;
