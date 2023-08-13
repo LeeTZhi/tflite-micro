@@ -8,6 +8,10 @@
 #define SNORE_DETECTION_H_
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 //initial mfcc feature module
 //default parameters are used, 16bit pcm, 8kHz, 32ms frame size, 31ms frame shift, 32 mel filter banks
 //if success, return 0, else return -1
@@ -38,5 +42,8 @@ int InferenceTFModel(
                      int* output_data_len, 
                      void* model_buffer, 
                      size_t model_buffer_len);
+#ifdef __cplusplus
+}
+#endif 
 
 #endif // SNORE_DETECTION_H_

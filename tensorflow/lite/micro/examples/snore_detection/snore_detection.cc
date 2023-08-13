@@ -32,7 +32,7 @@
   } while (0)
 
 namespace SnoreDetection {
-using SnoreDetectionOpResolver = tflite::MicroMutableOpResolver<8>;
+using SnoreDetectionOpResolver = tflite::MicroMutableOpResolver<10>;
 
 TfLiteStatus RegisterOps(SnoreDetectionOpResolver& op_resolver) {
   
@@ -42,12 +42,13 @@ TfLiteStatus RegisterOps(SnoreDetectionOpResolver& op_resolver) {
   TF_LITE_ENSURE_STATUS(op_resolver.AddSoftmax());
   TF_LITE_ENSURE_STATUS(op_resolver.AddAveragePool2D());
   TF_LITE_ENSURE_STATUS(op_resolver.AddRelu());
+  TF_LITE_ENSURE_STATUS(op_resolver.AddDepthwiseConv2D());
   return kTfLiteOk;
 }
 
 }  // namespace
 
-int InitializeMFCCFeatures() {
+extern "C" int InitializeMFCCFeatures() {
   TfLiteStatus mfcc_status = InitializeMicroFeatures();
   if (mfcc_status == kTfLiteOk) {
     return 0;
@@ -58,7 +59,7 @@ int InitializeMFCCFeatures() {
 }
 
 //Loop extract features
-int ExtractMFCCFeatures(const int16_t* pcm_data, int pcm_data_len, uint16_t* output_data, size_t* num_samples_read) {
+extern "C" int ExtractMFCCFeatures(const int16_t* pcm_data, int pcm_data_len, uint16_t* output_data, size_t* num_samples_read) {
     int audio_size = pcm_data_len;
     int16_t * audio_data = const_cast<int16_t*>(pcm_data);
     int frame_out_dim = 32;
@@ -78,7 +79,7 @@ int ExtractMFCCFeatures(const int16_t* pcm_data, int pcm_data_len, uint16_t* out
 }
 
 //initialize tflite model
-void* CreateTFModel( void* weights_buffer) {
+extern "C" void* CreateTFModel( void* weights_buffer) {
     // Create an area of memory to use for input, output, and intermediate arrays.
     const tflite::Model* model =
       ::tflite::GetModel(weights_buffer);
@@ -89,7 +90,7 @@ void* CreateTFModel( void* weights_buffer) {
 }
 
 //inference
-int InferenceTFModel(
+extern "C" int InferenceTFModel(
                      void* pModel, 
                      const uint16_t* input_data, 
                      int input_data_len, 
