@@ -65,7 +65,7 @@ extern "C" int ExtractMFCCFeatures(const int16_t* pcm_data, int pcm_data_len, ui
     int frame_out_dim = 32;
     int i = 0;
     LOG_INFO("start to extract feature");
-    TF_LITE_ENSURE_STATUS(InitializeMicroFeatures());
+    
     size_t num_sample_used = 0;
     while (audio_size >0 ) {
         GenerateMicroFeatures(audio_data, audio_size, frame_out_dim, output_data+i*frame_out_dim, &num_sample_used);
