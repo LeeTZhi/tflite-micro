@@ -197,8 +197,11 @@ TfLiteStatus LoadQuantModelAndPerformInference() {
 
 int TestSnoreLibFunction() {
   
+  // using the RecordingMicroInterpreter.
+  constexpr int kTensorArenaSize = 512*1024;
+  uint8_t tensor_arena[kTensorArenaSize];
 
-  void* model = CreateTFModel(snore_detection_float_tflite);
+  void* model = CreateTFModel(snore_detection_float_tflite, tensor_arena, kTensorArenaSize);
   
   assert(model != NULL);
   //TFLITE_CHECK_NE(model, NULL);
@@ -229,16 +232,12 @@ int TestSnoreLibFunction() {
   assert(ret == 0);
 
 
-  // using the RecordingMicroInterpreter.
-  constexpr int kTensorArenaSize = 512*1024;
-  uint8_t tensor_arena[kTensorArenaSize];
 
   uint16_t output[2];
   int output_len = 2;
   ret = InferenceTFModel(model, 
              mfcc_output_data, kNumTestValues,
-              output, &output_len,
-              tensor_arena, kTensorArenaSize);
+              output, &output_len);
 
   assert(ret == 0);
 

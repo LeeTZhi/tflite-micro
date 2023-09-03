@@ -21,8 +21,18 @@ int InitializeMFCCFeatures();
 //if success, return 0, else return -1
 int ExtractMFCCFeatures(const int16_t* pcm_data, int pcm_data_len,  uint16_t* output_data, size_t* num_samples_read);
 
-//initialize tflite model
-void* CreateTFModel(void* weights_buffer);
+
+/* //initialize tflite model, if success return the handle of  model, else return NULL
+ *parameters: 
+    @weights_buffer: pointer to tflite model weights
+    @model_buffer: pointer to tflite model
+    @model_buffer_len: length of tflite model
+*/   
+void* CreateTFModel(
+    void* weights_buffer,
+    void* model_buffer, 
+    size_t model_buffer_len
+  );
 
 /*inference if success, return 0, else return -1
  *parameters: 
@@ -39,9 +49,8 @@ int InferenceTFModel(
                      const uint16_t* input_data, 
                      int input_data_len, 
                      uint16_t* output_data, 
-                     int* output_data_len, 
-                     void* model_buffer, 
-                     size_t model_buffer_len);
+                     int* output_data_len
+                     );
 #ifdef __cplusplus
 }
 #endif 
