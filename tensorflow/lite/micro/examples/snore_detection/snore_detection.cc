@@ -32,28 +32,17 @@
   } while (0)
 
 namespace SnoreDetection {
+  using SnoreDetectionOpResolver = tflite::MicroMutableOpResolver<10>;
+
   typedef struct model_struct {
     const tflite::Model* model = nullptr;
     tflite::MicroInterpreter* interpreter = nullptr;
     void* model_buffer = nullptr;
     size_t model_buffer_len = 0;
   } model_t;
-  
-using SnoreDetectionOpResolver = tflite::MicroMutableOpResolver<10>;
-
-TfLiteStatus RegisterOps(SnoreDetectionOpResolver& op_resolver) {
-  
-  TF_LITE_ENSURE_STATUS(op_resolver.AddConv2D());
-  TF_LITE_ENSURE_STATUS(op_resolver.AddFullyConnected());
-  TF_LITE_ENSURE_STATUS(op_resolver.AddReshape());
-  TF_LITE_ENSURE_STATUS(op_resolver.AddSoftmax());
-  TF_LITE_ENSURE_STATUS(op_resolver.AddAveragePool2D());
-  TF_LITE_ENSURE_STATUS(op_resolver.AddRelu());
-  TF_LITE_ENSURE_STATUS(op_resolver.AddDepthwiseConv2D());
-  return kTfLiteOk;
-}
-
 }  // namespace
+
+SnoreDetection::SnoreDetectionOpResolver op_resolver;
 
 extern "C" int InitializeMFCCFeatures() {
   TfLiteStatus mfcc_status = InitializeMicroFeatures();
@@ -101,11 +90,17 @@ extern "C" void* CreateTFModel(
     TFLITE_CHECK_EQ(pWrapper->model->version(), TFLITE_SCHEMA_VERSION);
 
     // Build an interpreter to run the model with.
-    SnoreDetection::SnoreDetectionOpResolver op_resolver;
-
-    TF_LITE_ENSURE_NULL(SnoreDetection::RegisterOps(op_resolver));
+    
+    TF_LITE_ENSURE_NULL(op_resolver.AddConv2D());
+    TF_LITE_ENSURE_NULL(op_resolver.AddFullyConnected());
+    TF_LITE_ENSURE_NULL(op_resolver.AddReshape());
+    TF_LITE_ENSURE_NULL(op_resolver.AddSoftmax());
+    TF_LITE_ENSURE_NULL(op_resolver.AddAveragePool2D());
+    TF_LITE_ENSURE_NULL(op_resolver.AddRelu());
+    TF_LITE_ENSURE_NULL(op_resolver.AddDepthwiseConv2D());
     TF_LITE_ENSURE_NULL(op_resolver.AddQuantize());
     TF_LITE_ENSURE_NULL(op_resolver.AddDequantize());
+
     pWrapper->interpreter = new tflite::MicroInterpreter(pWrapper->model, op_resolver, (uint8_t*)model_buffer, model_buffer_len);
 
     // Allocate memory from the tensor_arena for the model's tensors.
@@ -136,7 +131,9 @@ extern "C" int InferenceTFModel(
 
     //invoke inference
     TF_LITE_ENSURE_STATUS(pWrapper->interpreter->Invoke());
-
+#ifdef __linux__
+    fprintf(stderr, "usage: %ld\n", pWrapper->interpreter->arena_used_bytes());
+#endif
     //get output
     TfLiteTensor* output = pWrapper->interpreter->output(0);
     int output_len = output->bytes / sizeof(uint16_t);

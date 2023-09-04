@@ -208,7 +208,7 @@ int TestSnoreLibFunction() {
 
   //Initial MFCC feature
   int ret = InitializeMFCCFeatures();
-  
+  (void)ret;
   //extract features
   constexpr int kNumTestValues = 32*32;
 
@@ -235,11 +235,15 @@ int TestSnoreLibFunction() {
 
   uint16_t output[2];
   int output_len = 2;
-  ret = InferenceTFModel(model, 
+  for ( int i = 0; i < 10; i++ )
+  {
+
+    ret = InferenceTFModel(model, 
              mfcc_output_data, kNumTestValues,
               output, &output_len);
 
-  assert(ret == 0);
+    assert(ret == 0);
+  }
 
   MicroPrintf("y_pred0: %d y_pred1: %d\n", (int32_t)(output[0]), (int32_t)(output[1]));
   return 0;
