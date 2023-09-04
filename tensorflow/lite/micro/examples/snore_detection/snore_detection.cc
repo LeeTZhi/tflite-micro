@@ -32,6 +32,13 @@
   } while (0)
 
 namespace SnoreDetection {
+  typedef struct model_struct {
+    const tflite::Model* model = nullptr;
+    tflite::MicroInterpreter* interpreter = nullptr;
+    void* model_buffer = nullptr;
+    size_t model_buffer_len = 0;
+  } model_t;
+  
 using SnoreDetectionOpResolver = tflite::MicroMutableOpResolver<10>;
 
 TfLiteStatus RegisterOps(SnoreDetectionOpResolver& op_resolver) {
@@ -65,7 +72,6 @@ extern "C" int ExtractMFCCFeatures(const int16_t* pcm_data, int pcm_data_len, ui
     int frame_out_dim = 32;
     int i = 0;
     LOG_INFO("start to extract feature");
-    
     size_t num_sample_used = 0;
     while (audio_size >0 ) {
         GenerateMicroFeatures(audio_data, audio_size, frame_out_dim, output_data+i*frame_out_dim, &num_sample_used);
@@ -79,14 +85,33 @@ extern "C" int ExtractMFCCFeatures(const int16_t* pcm_data, int pcm_data_len, ui
 }
 
 //initialize tflite model
-extern "C" void* CreateTFModel( void* weights_buffer) {
-    // Create an area of memory to use for input, output, and intermediate arrays.
-    const tflite::Model* model =
-      ::tflite::GetModel(weights_buffer);
-    TFLITE_CHECK_EQ(model->version(), TFLITE_SCHEMA_VERSION);
-
+extern "C" void* CreateTFModel( 
+  void* weights_buffer, 
+  void* model_buffer, 
+  size_t model_buffer_len
+  ) {
     
-    return (void*)model;
+    SnoreDetection::model_t* pWrapper =  (SnoreDetection::model_t*)malloc(sizeof(SnoreDetection::model_t));
+    if ( !pWrapper ) {
+      MicroPrintf("Error at %s:%d\n", __FILE__, __LINE__);
+      return NULL;
+    }
+    pWrapper->model =
+      ::tflite::GetModel(weights_buffer);
+    TFLITE_CHECK_EQ(pWrapper->model->version(), TFLITE_SCHEMA_VERSION);
+
+    // Build an interpreter to run the model with.
+    SnoreDetection::SnoreDetectionOpResolver op_resolver;
+
+    TF_LITE_ENSURE_NULL(SnoreDetection::RegisterOps(op_resolver));
+    TF_LITE_ENSURE_NULL(op_resolver.AddQuantize());
+    TF_LITE_ENSURE_NULL(op_resolver.AddDequantize());
+    pWrapper->interpreter = new tflite::MicroInterpreter(pWrapper->model, op_resolver, (uint8_t*)model_buffer, model_buffer_len);
+
+    // Allocate memory from the tensor_arena for the model's tensors.
+    TF_LITE_ENSURE_NULL(pWrapper->interpreter->AllocateTensors());
+    
+    return (void*)pWrapper;
 }
 
 //inference
@@ -95,31 +120,25 @@ extern "C" int InferenceTFModel(
                      const uint16_t* input_data, 
                      int input_data_len, 
                      uint16_t* output_data, 
-                     int* output_data_len, 
-                     void* model_buffer, 
-                     size_t model_buffer_len) {
-    const tflite::Model* model = (const tflite::Model*)pModel;
-    // Build an interpreter to run the model with.
-    SnoreDetection::SnoreDetectionOpResolver op_resolver;
-
-    TF_LITE_ENSURE_STATUS(SnoreDetection::RegisterOps(op_resolver));
-    TF_LITE_ENSURE_STATUS(op_resolver.AddQuantize());
-    TF_LITE_ENSURE_STATUS(op_resolver.AddDequantize());
-    tflite::MicroInterpreter interpreter(model, op_resolver, (uint8_t*)model_buffer, model_buffer_len);
-
-    // Allocate memory from the tensor_arena for the model's tensors.
-    TF_LITE_ENSURE_STATUS(interpreter.AllocateTensors());
+                     int* output_data_len
+                     ) {
+    SnoreDetection::model_t* pWrapper = (SnoreDetection::model_t*)pModel;
+    if ( !pWrapper ) {
+      MicroPrintf("Error at %s:%d\n", __FILE__, __LINE__);
+      return -1;
+    }
+    
     // set input
-    TfLiteTensor* input = interpreter.input(0);
+    TfLiteTensor* input = pWrapper->interpreter->input(0);
     for ( int i = 0; i < input_data_len; ++i) {
       input->data.f[i] = static_cast<float>(input_data[i]);
     }
 
     //invoke inference
-    TF_LITE_ENSURE_STATUS(interpreter.Invoke());
+    TF_LITE_ENSURE_STATUS(pWrapper->interpreter->Invoke());
 
     //get output
-    TfLiteTensor* output = interpreter.output(0);
+    TfLiteTensor* output = pWrapper->interpreter->output(0);
     int output_len = output->bytes / sizeof(uint16_t);
     for (int i = 0; i < output_len; ++i) {
       output_data[i] = static_cast<uint16_t>(output->data.f[i]*1024.0f);
